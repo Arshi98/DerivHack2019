@@ -1,0 +1,214 @@
+-- Copyright (c) 2019 The DAML Authors. All rights reserved.
+-- SPDX-License-Identifier: Apache-2.0
+
+daml 1.2
+module Main where
+import DA.Date
+import Org.Isda.Cdm.Classes qualified as CDM
+
+
+template UC2
+  with
+    event : CDM.Event
+    owner : Party
+    client : Party
+    broker1: Party
+    broker2: Party
+    obs   : Party
+    executionKey: Text
+    tradeType: Text
+    tradeStage: Text
+    tradeAmount: Decimal
+    currency: Text
+  where
+    signatory owner
+    observer obs, broker1, broker2
+
+    controller owner can
+      Allocate : ContractId UC2 
+        with whomToGreet: Text
+        do 
+          create this with event = event;owner;client;broker1;broker2;executionKey;tradeType;tradeAmount;currency;tradeStage
+    
+    controller owner can
+      ArchiveDuplicates: ()
+        do assert (owner /= client)
+
+    controller broker1 can
+      RemoveOriginalTrade: ()
+        do assert (broker1 /= client)
+
+    controller client can
+      SplitAndAllocate: ContractId AllocatedTrades 
+        with allocation1: Decimal
+             allocation2: Decimal
+             description: Text
+        do 
+          create AllocatedTrades with event = event;owner;client;broker1;broker2;executionKey;tradeType;tradeAmount;currency;tradeStage;allocation1;allocation2;description
+
+    controller broker1 can
+      nonconsuming SplitAndAllocateTrade1: ContractId AllocatedTrades 
+        with allocation1: Decimal
+             allocation2: Decimal
+             newTradeAmount: Decimal
+             description: Text
+        do 
+          create AllocatedTrades with event = event;owner;client;broker1;broker2;executionKey;tradeType;tradeAmount=newTradeAmount;currency;tradeStage="Allocation";allocation1;allocation2;description
+
+    controller broker1 can
+      nonconsuming SplitAndAllocateTrade2: ContractId AllocatedTrades 
+        with allocation1: Decimal
+             allocation2: Decimal
+             newTradeAmount: Decimal
+             description: Text
+        do 
+          create AllocatedTrades with event = event;owner;client;broker1;broker2;executionKey;tradeType;tradeAmount=newTradeAmount;currency;tradeStage="Allocation";allocation1;allocation2;description
+
+template AllocatedTrades
+  with
+    event : CDM.Event
+    owner : Party
+    client : Party
+    broker1: Party
+    broker2: Party
+    executionKey: Text
+    tradeType: Text
+    tradeAmount: Decimal
+    currency: Text
+    tradeStage: Text
+    allocation1: Decimal
+    allocation2: Decimal
+    description: Text
+  where
+    signatory broker1
+    observer client
+    
+    controller client can
+      AffirmTrade: ContractId AffirmTrades
+        with affirm: Text
+        do 
+          assertMsg "Trade allocation is not matcing with trade amount !" (tradeAmount /= allocation1+allocation2)
+          create AffirmTrades with event = event;owner;client;broker1;broker2;executionKey;tradeType;tradeAmount;currency;tradeStage="Affirm";allocation1;allocation2;description;affirm
+
+template AffirmTrades
+  with
+    event : CDM.Event
+    owner : Party
+    client : Party
+    broker1: Party
+    broker2: Party
+    executionKey: Text
+    tradeType: Text
+    tradeAmount: Decimal
+    currency: Text
+    tradeStage: Text
+    allocation1: Decimal
+    allocation2: Decimal
+    description: Text
+    affirm: Text
+  where
+    signatory client
+    observer broker1,broker2,owner
+
+    controller broker1 can
+      ConfirmTrade: ContractId ConfirmTrades
+        with confirm: Text
+        do 
+          create ConfirmTrades with event = event;owner;client;broker1;broker2;executionKey;tradeType;tradeAmount;currency;tradeStage="Confirm";allocation1;allocation2;description;confirm
+
+template ConfirmTrades
+  with
+    event : CDM.Event
+    owner : Party
+    client : Party
+    broker1: Party
+    broker2: Party
+    executionKey: Text
+    tradeType: Text
+    tradeAmount: Decimal
+    currency: Text
+    tradeStage: Text
+    allocation1: Decimal
+    allocation2: Decimal
+    description: Text
+    confirm: Text
+  where
+    signatory client
+    observer broker1,broker2,owner
+
+    controller broker1 can
+      StartSettlement: ContractId SettlementTrades
+        with newEvent: CDM.Event
+        do 
+          now <- getTime
+          let
+            executionDate = toDateUTC now
+            settilementDate = addDays executionDate 1
+          create SettlementTrades with event = newEvent;owner;client;broker1;broker2;executionKey;tradeType;tradeAmount;currency;tradeStage="Settlement";allocation1;allocation2;description;executionDate;settilementDate
+
+template SettlementTrades
+  with
+    event : CDM.Event
+    owner : Party
+    client : Party
+    broker1: Party
+    broker2: Party
+    executionKey: Text
+    tradeType: Text
+    tradeAmount: Decimal
+    currency: Text
+    tradeStage: Text
+    allocation1: Decimal
+    allocation2: Decimal
+    description: Text
+    executionDate: Date
+    settilementDate: Date
+  where
+    signatory client
+    observer broker1,broker2,owner
+
+    controller client can
+      ColletralMyShare: ContractId ColletralTrade
+        with locker: Party
+        do 
+          now <- getTime
+          let
+            colExecutionDate = toDateUTC now
+            maturityDate = addDays executionDate 365
+          create ColletralTrade with trade=this; colExecutionDate;maturityDate; locker;event;owner;client;broker1;broker2;executionKey;tradeType;tradeAmount;currency;tradeStage="ColletralLocked";allocation1;allocation2;description;executionDate;settilementDate
+
+template ColletralTrade
+  with
+    trade: SettlementTrades
+    colExecutionDate: Date
+    maturityDate: Date
+    locker: Party
+    event : CDM.Event
+    owner : Party
+    client : Party
+    broker1: Party
+    broker2: Party
+    executionKey: Text
+    tradeType: Text
+    tradeAmount: Decimal
+    currency: Text
+    tradeStage: Text
+    allocation1: Decimal
+    allocation2: Decimal
+    description: Text
+    executionDate: Date
+    settilementDate: Date
+  where
+    signatory trade.client
+    observer trade.owner
+
+    controller locker can
+      UnlockDefault
+        : ContractId ColletralTrade
+        do create this with trade;colExecutionDate;maturityDate;locker;event;owner;client;broker1;broker2;executionKey;tradeType;tradeAmount;currency; tradeStage ="ColletralUnLocked";allocation1;allocation2;description;executionDate;settilementDate     
+
+    controller trade.client can
+      Unlock 
+        : ContractId ColletralTrade
+          do create this with trade;colExecutionDate;maturityDate;locker;event;owner;client;broker1;broker2;executionKey;tradeType;tradeAmount;currency; tradeStage ="ColletralUnLocked";allocation1;allocation2;description;executionDate;settilementDate     
+  

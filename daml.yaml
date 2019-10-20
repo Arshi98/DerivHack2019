@@ -1,0 +1,12 @@
+sdk-version: 0.13.29
+name: hellocdm
+source: daml
+parties:
+  - Alice
+  - Client1
+  - Broker1
+  - Bob
+version: 0.0.1
+dependencies:
+  - daml-prim
+  - daml-stdlib

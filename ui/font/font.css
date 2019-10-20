@@ -1,0 +1,18 @@
+@font-face {
+  font-family: 'TREBUCBD';
+  src: url('TREBUCBD.eot');
+  src: url('TREBUCBD.eot?#iefix') format('embedded-opentype'),
+       url('TREBUCBD.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'TrebuchetMS-Bold';
+  src: url('TrebuchetMS-Bold.svg#TrebuchetMS-Bold') format('svg'),
+       url('TrebuchetMS-Bold.ttf') format('truetype'),
+       url('TrebuchetMS-Bold.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+

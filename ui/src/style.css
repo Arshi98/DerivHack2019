@@ -1,0 +1,25 @@
+@font-face {
+    font-family: 'TREBUCBD';
+    src: url('../../font/TREBUCBD.eot');
+    src: url('../../font/TREBUCBD.eot?#iefix') format('embedded-opentype'),
+         url('../../font/TREBUCBD.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+  }
+  
+  @font-face {
+    font-family: 'TrebuchetMS-Bold';
+    src: url('../../font/TrebuchetMS-Bold.svg#TrebuchetMS-Bold') format('svg'),
+         url('../../font/TrebuchetMS-Bold.ttf') format('truetype'),
+         url('../../font/TrebuchetMS-Bold.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+  
+  }
+
+  body,html{
+    font-family: 'TrebuchetMS-Bold';
+  }
+
+  
+  
